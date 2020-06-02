@@ -49,7 +49,9 @@
                       (video-id->url video-id)
                       :dir (-> session :path))]
     (when-not (= 0 (:exit ret))
-      (throw (ex-info "youtube-dl failed" {:ret ret :video-id video-id})))))
+      (throw (ex-info (str "youtube-dl failed: "
+                           (-> ret :err))
+                      {:ret ret :video-id video-id})))))
 
 
 (defn download-missing-file [session item]
@@ -63,8 +65,7 @@
         (download-video session video-id)
         (tag-mp3 file title)
         (catch Exception ex
-          (println "Downloading video failed: " video-id)
-          (println "\n  -> " (-> ex .getMessage)))))))
+          (println "  FAILED: " (-> ex .getMessage)))))))
 
 
 (defn download-missing-files [session]
