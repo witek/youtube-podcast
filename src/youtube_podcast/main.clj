@@ -63,8 +63,8 @@
         (download-video session video-id)
         (tag-mp3 file title)
         (catch Exception ex
-          (println "Downloading video failed")
-          (-> ex .printStackTrace))))))
+          (println "Downloading video failed: " video-id)
+          (println "\n  -> " (-> ex .getMessage)))))))
 
 
 (defn download-missing-files [session]
