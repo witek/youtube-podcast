@@ -5,23 +5,26 @@
    [clojure.java.io :as io]
    [clojure.xml :as xml]
    [clojure.edn :as edn]
+   [clojure.pprint :as pprint]
    [claudio.id3 :as id3]))
 
 
+(defn write-edn-file [session name data]
+  (spit (str (-> session :path) "/" name) (with-out-str (pprint/pprint data))))
 
 
 (defn load-channel-videos [session]
   (println "Loading Channel...")
-  (assoc session
-         :items
-         (-> (str "https://www.googleapis.com/youtube/v3/playlistItems"
-                  "?part=contentDetails,snippet"
-                  "&maxResults=" 50
-                  "&key=" (-> session :youtube :api-key)
-                  "&playlistId=" (-> session :youtube :channel-id))
-             slurp
-             (json/parse-string true)
-             :items)))
+  (let [items (-> (str "https://www.googleapis.com/youtube/v3/playlistItems"
+                       "?part=contentDetails,snippet"
+                       "&maxResults=" 50
+                       "&key=" (-> session :youtube :api-key)
+                       "&playlistId=" (-> session :youtube :channel-id))
+                  slurp
+                  (json/parse-string true)
+                  :items)]
+    (write-edn-file session "items.edn" items)
+    (assoc session :items items)))
 
 
 (defn video-id->url [video-id]
@@ -85,15 +88,24 @@
                            (= 10 (int %))))
                         s)))))
 
+(def dateformat-in (java.text.SimpleDateFormat. "yyyy-MM-dd'T'HH:mm:ss'Z'" java.util.Locale/US))
+(def dateformat-out (java.text.SimpleDateFormat. "EE, dd MMM yyyy HH:mm:ss ZZ" java.util.Locale/US))
+
+(comment
+  (-> dateformat-in (.parse "2021-01-05T12:18:08Z")))
 
 (defn create-rss-item [podcast-base-url item]
   (let [title (->ascii (get-in item [:snippet :title]))
         description (->ascii (get-in item [:snippet :description]))
         video-id (get-in item [:contentDetails :videoId])
         file (io/as-file (str video-id ".mp3"))
-        length (.length file)]
+        length (.length file)
+        date-in (get-in item [:snippet :publishedAt])
+        date (-> dateformat-in (.parse date-in))
+        date-out (-> dateformat-out (.format date))]
     {:tag :item
      :content [{:tag :title :content [title]}
+               {:tag :pubDate :content [date-out]}
                {:tag :description :content [description]}
                {:tag :guid :attrs {:isPermaLink false} :content [(str "youtubepodcast-" video-id)]}
                {:tag :enclosure :attrs {:url (str podcast-base-url video-id ".mp3")
@@ -130,7 +142,6 @@
 
 
 (defn new-session [path]
-
   (let [config (edn/read-string (slurp (str path  "/youtube-podcast.edn")))]
     (assoc config
            :path path)))
