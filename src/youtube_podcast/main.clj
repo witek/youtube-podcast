@@ -39,8 +39,8 @@
                   :genre "Youtube Video"))
 
 
-(defn download-video [session video-id]
-  (println "  -> Downloading video...")
+(defn download-video [session video-id title]
+  (println "  -> Downloading:" title)
   (let [ret (shell/sh "youtube-dl"
                       "--id"
                       "--no-progress"
@@ -62,10 +62,10 @@
         file (io/as-file (str (-> session :path) "/" video-id ".mp3"))
         file-exists (.exists file)
         title (get-in item [:snippet :title])]
-    (println "\n" title)
+    #_(println "\n -> " title)
     (when-not file-exists
       (try
-        (download-video session video-id)
+        (download-video session video-id title)
         (tag-mp3 file title)
         (catch Exception ex
           (println "  FAILED: " (-> ex .getMessage)))))))
