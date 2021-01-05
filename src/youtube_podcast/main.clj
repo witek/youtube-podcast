@@ -12,6 +12,9 @@
 (defn write-edn-file [session name data]
   (spit (str (-> session :path) "/" name) (with-out-str (pprint/pprint data))))
 
+(def broken-titles
+  #{"Private video"
+    "Deleted video"})
 
 (defn load-channel-videos [session]
   (println "Loading Channel...")
@@ -22,7 +25,8 @@
                        "&playlistId=" (-> session :youtube :channel-id))
                   slurp
                   (json/parse-string true)
-                  :items)]
+                  :items)
+        items (remove #(broken-titles (get-in % [:snippet :title])) items)]
     (write-edn-file session "items.edn" items)
     (assoc session :items items)))
 
@@ -142,6 +146,7 @@
 
 
 (defn new-session [path]
+  (println "[" path "]")
   (let [config (edn/read-string (slurp (str path  "/youtube-podcast.edn")))]
     (assoc config
            :path path)))
